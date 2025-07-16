@@ -4,12 +4,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 
 // Pages
-import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import DashboardPage from './pages/DashboardPage';
-import PreferencesPage from './pages/PreferencesPage';
-import PricingPage from './pages/PricingPage';
+import {
+  LandingPage,
+  LoginPage,
+  RegisterPage,
+  DashboardPage,
+  PreferencesPage,
+  PricingPage
+} from './pages';
 
 // Components
 import Layout from './components/Layout';
@@ -17,7 +19,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 // Context
 import { AuthProvider } from './contexts/AuthContext';
-import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeProvider } from './contexts';
 
 // Styles
 import './styles/globals.css';
