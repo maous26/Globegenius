@@ -27,3 +27,9 @@ export { formatters } from './formatters';
 
 // Helper utilities
 export { helpers } from './helpers';
+
+// Performance utilities
+export { performanceUtils } from './performance';
+
+// Testing utilities
+export { default as testUtils } from './testing';

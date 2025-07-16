@@ -11,19 +11,19 @@ dotenv.config();
 
 // Import configurations and utilities
 import { config } from './config';
-import { logger } from './utils/logger';
+import { logger } from './utils';
 
 // TODO: Re-enable these imports once module resolution is fixed
-// import { errorHandler } from './middleware/errorHandler';
-// import { rateLimiter } from './middleware/rateLimiter.simple';
-// import { connectDatabase } from './database/connection';
-// import { connectRedis, cleanupRedis } from './services/redis';
+// import { errorHandler } from './middleware';
+// import { rateLimiter } from './middleware';
+// import { connectDatabase } from './database';
+// import { connectRedis, cleanupRedis } from './services';
 // import { initializeJobs } from './jobs';
 
 // Import routes (commented out until module resolution is fixed)
-// import authRoutes from './routes/auth';
-// import userRoutes from './routes/users';
-// import alertRoutes from './routes/alerts';
+// import authRoutes from './routes';
+// import userRoutes from './routes';
+// import alertRoutes from './routes';
 // import metricsRoutes from './routes/metrics';
 // import adminRoutes from './routes/admin';
 
