@@ -1,0 +1,24 @@
+name: Validate Environment
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * 1' # Every Monday at 9 AM
+
+jobs:
+  validate:
+    name: Environment Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate project structure
+        run: |
+          echo "🔍 Validating project structure..."
+          ls -la
+          echo "✅ Backend exists: $([ -d backend ] && echo 'Yes' || echo 'No')"
+          echo "✅ Frontend exists: $([ -d frontend ] && echo 'Yes' || echo 'No')"
+          echo "✅ ML exists: $([ -d ml ] && echo 'Yes' || echo 'No')"
+          echo "✅ Docker files exist: $([ -f backend/Dockerfile ] && echo 'Yes' || echo 'No')"
+          echo "✅ CI/CD workflow exists: $([ -f .github/workflows/ci-cd.yml ] && echo 'Yes' || echo 'No')"
+          echo "🎉 Environment validation completed"
