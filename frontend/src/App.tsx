@@ -14,12 +14,10 @@ import {
 } from './pages';
 
 // Components
-import Layout from './components/Layout';
-import ProtectedRoute from './components/ProtectedRoute';
+import { Layout, ProtectedRoute } from './components';
 
 // Context
-import { AuthProvider } from './contexts/AuthContext';
-import { ThemeProvider } from './contexts';
+import { AuthProvider, ThemeProvider } from './contexts';
 
 // Styles
 import './styles/globals.css';
