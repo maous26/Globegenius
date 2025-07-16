@@ -44,7 +44,8 @@
   "scripts": {
     "dev": "vite",
     "start": "vite --host 0.0.0.0",
-    "build": "tsc && vite build",
+    "build": "vite build",
+    "build:full": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
