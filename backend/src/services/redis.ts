@@ -110,7 +110,7 @@ export const redisService = {
     generator: () => Promise<T>
   ): Promise<T> {
     // Essayer de récupérer depuis le cache
-    const cached = await this.getJSON<T>(key);
+    const cached = await this.getJSON(key) as T | null;
     if (cached !== null) {
       return cached;
     }

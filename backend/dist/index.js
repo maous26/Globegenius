@@ -45,20 +45,19 @@ const dotenv = __importStar(require("dotenv"));
 const http_1 = require("http");
 // Load environment variables
 dotenv.config();
-// Load environment variables
-dotenv.config();
 const logger_1 = require("./utils/logger");
-const errorHandler_1 = require("./middleware/errorHandler");
-const rateLimiter_1 = require("./middleware/rateLimiter");
-const connection_1 = require("./database/connection");
-const redis_1 = require("./services/redis");
-const jobs_1 = require("./jobs");
-// Import routes
-const auth_1 = __importDefault(require("./routes/auth"));
-const users_1 = __importDefault(require("./routes/users"));
-const alerts_1 = __importDefault(require("./routes/alerts"));
-const metrics_1 = __importDefault(require("./routes/metrics"));
-const admin_1 = __importDefault(require("./routes/admin"));
+// TODO: Re-enable these imports once module resolution is fixed
+// import { errorHandler } from './middleware/errorHandler';
+// import { rateLimiter } from './middleware/rateLimiter.simple';
+// import { connectDatabase } from './database/connection';
+// import { connectRedis, cleanupRedis } from './services/redis';
+// import { initializeJobs } from './jobs';
+// Import routes (commented out until module resolution is fixed)
+// import authRoutes from './routes/auth';
+// import userRoutes from './routes/users';
+// import alertRoutes from './routes/alerts';
+// import metricsRoutes from './routes/metrics';
+// import adminRoutes from './routes/admin';
 // Create Express app
 const app = (0, express_1.default)();
 const server = (0, http_1.createServer)(app);
@@ -81,8 +80,8 @@ app.use((0, compression_1.default)());
 app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
 app.use((0, morgan_1.default)('combined', { stream: { write: message => logger_1.logger.info(message.trim()) } }));
-// Rate limiting
-app.use('/api/', rateLimiter_1.rateLimiter);
+// Rate limiting (commented out until module resolution is fixed)
+// app.use('/api/', rateLimiter);
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.json({
@@ -92,12 +91,12 @@ app.get('/health', (req, res) => {
         version: process.env.npm_package_version,
     });
 });
-// API Routes
-app.use('/api/auth', auth_1.default);
-app.use('/api/users', users_1.default);
-app.use('/api/alerts', alerts_1.default);
-app.use('/api/metrics', metrics_1.default);
-app.use('/api/admin', admin_1.default);
+// API Routes (commented out until module resolution is fixed)
+// app.use('/api/auth', authRoutes);
+// app.use('/api/users', userRoutes);
+// app.use('/api/alerts', alertRoutes);
+// app.use('/api/metrics', metricsRoutes);
+// app.use('/api/admin', adminRoutes);
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({
@@ -105,8 +104,8 @@ app.use((req, res) => {
         message: 'The requested resource does not exist',
     });
 });
-// Error handling middleware (must be last)
-app.use(errorHandler_1.errorHandler);
+// Error handling middleware (commented out until module resolution is fixed)
+// app.use(errorHandler);
 // Graceful shutdown handler
 const gracefulShutdown = async (signal) => {
     logger_1.logger.info(`${signal} received. Starting graceful shutdown...`);
@@ -114,12 +113,13 @@ const gracefulShutdown = async (signal) => {
     server.close(() => {
         logger_1.logger.info('HTTP server closed');
     });
+    // TODO: Re-enable when modules are fixed
     // Close database connections
-    await connection_1.connectDatabase.end();
-    logger_1.logger.info('Database connections closed');
+    // await connectDatabase.end();
+    // logger.info('Database connections closed');
     // Close Redis connections
-    await redis_1.connectRedis.quit();
-    logger_1.logger.info('Redis connections closed');
+    // await cleanupRedis();
+    // logger.info('Redis connections closed');
     // Exit process
     process.exit(0);
 };
@@ -138,17 +138,18 @@ process.on('unhandledRejection', (reason, promise) => {
 // Start server
 const startServer = async () => {
     try {
+        // TODO: Re-enable when modules are fixed
         // Connect to database
-        await connection_1.connectDatabase.connect();
-        logger_1.logger.info('✅ Database connected successfully');
+        // await connectDatabase.connect();
+        // logger.info('✅ Database connected successfully');
         // Connect to Redis
-        await redis_1.connectRedis.connect();
-        logger_1.logger.info('✅ Redis connected successfully');
+        // await connectRedis();
+        // logger.info('✅ Redis connected successfully');
         // Initialize background jobs
-        if (process.env.NODE_ENV !== 'test') {
-            await (0, jobs_1.initializeJobs)();
-            logger_1.logger.info('✅ Background jobs initialized');
-        }
+        // if (process.env.NODE_ENV !== 'test') {
+        //   await initializeJobs();
+        //   logger.info('✅ Background jobs initialized');
+        // }
         // Start listening
         const PORT = process.env.PORT || 3000;
         server.listen(PORT, () => {

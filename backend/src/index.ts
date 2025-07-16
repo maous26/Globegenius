@@ -9,24 +9,23 @@ import { createServer } from 'http';
 // Load environment variables
 dotenv.config();
 
-// Load environment variables
-dotenv.config();
-
 // Import configurations and utilities
 import { config } from './config';
 import { logger } from './utils/logger';
-import { errorHandler } from './middleware/errorHandler';
-import { rateLimiter } from './middleware/rateLimiter.simple';
-import { connectDatabase } from './database/connection';
-import { connectRedis } from './services/redis';
-import { initializeJobs } from './jobs';
 
-// Import routes
-import authRoutes from './routes/auth';
-import userRoutes from './routes/users';
-import alertRoutes from './routes/alerts';
-import metricsRoutes from './routes/metrics';
-import adminRoutes from './routes/admin';
+// TODO: Re-enable these imports once module resolution is fixed
+// import { errorHandler } from './middleware/errorHandler';
+// import { rateLimiter } from './middleware/rateLimiter.simple';
+// import { connectDatabase } from './database/connection';
+// import { connectRedis, cleanupRedis } from './services/redis';
+// import { initializeJobs } from './jobs';
+
+// Import routes (commented out until module resolution is fixed)
+// import authRoutes from './routes/auth';
+// import userRoutes from './routes/users';
+// import alertRoutes from './routes/alerts';
+// import metricsRoutes from './routes/metrics';
+// import adminRoutes from './routes/admin';
 
 // Create Express app
 const app = express();
@@ -52,7 +51,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 
-// Rate limiting
+// Rate limiting (commented out until module resolution is fixed)
 // app.use('/api/', rateLimiter);
 
 // Health check endpoint
@@ -65,7 +64,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
+// API Routes (commented out until module resolution is fixed)
 // app.use('/api/auth', authRoutes);
 // app.use('/api/users', userRoutes);
 // app.use('/api/alerts', alertRoutes);
@@ -80,7 +79,7 @@ app.use((req, res) => {
   });
 });
 
-// Error handling middleware (must be last)
+// Error handling middleware (commented out until module resolution is fixed)
 // app.use(errorHandler);
 
 // Graceful shutdown handler
@@ -92,13 +91,14 @@ const gracefulShutdown = async (signal: string) => {
     logger.info('HTTP server closed');
   });
 
+  // TODO: Re-enable when modules are fixed
   // Close database connections
-  await connectDatabase.end();
-  logger.info('Database connections closed');
+  // await connectDatabase.end();
+  // logger.info('Database connections closed');
 
   // Close Redis connections
-  await connectRedis.quit();
-  logger.info('Redis connections closed');
+  // await cleanupRedis();
+  // logger.info('Redis connections closed');
 
   // Exit process
   process.exit(0);
@@ -122,19 +122,20 @@ process.on('unhandledRejection', (reason, promise) => {
 // Start server
 const startServer = async () => {
   try {
+    // TODO: Re-enable when modules are fixed
     // Connect to database
-    await connectDatabase.connect();
-    logger.info('✅ Database connected successfully');
+    // await connectDatabase.connect();
+    // logger.info('✅ Database connected successfully');
 
     // Connect to Redis
-    await connectRedis.connect();
-    logger.info('✅ Redis connected successfully');
+    // await connectRedis();
+    // logger.info('✅ Redis connected successfully');
 
     // Initialize background jobs
-    if (process.env.NODE_ENV !== 'test') {
-      await initializeJobs();
-      logger.info('✅ Background jobs initialized');
-    }
+    // if (process.env.NODE_ENV !== 'test') {
+    //   await initializeJobs();
+    //   logger.info('✅ Background jobs initialized');
+    // }
 
     // Start listening
     const PORT = process.env.PORT || 3000;

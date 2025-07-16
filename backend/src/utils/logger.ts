@@ -64,7 +64,7 @@ const devTransport = {
 const prodTransport = {
   target: 'pino/file',
   options: { 
-    destination: process.stdout.fd,
+    destination: 1, // stdout
     mkdir: true,
   },
 };
@@ -74,7 +74,7 @@ export const logger = isTest
   ? pino({ ...options, level: 'silent' }) // Silent en mode test
   : pino(
       options,
-      pino.transport(isDevelopment ? devTransport : prodTransport)
+      isDevelopment ? pino.transport(devTransport) : pino.transport(prodTransport)
     );
 
 // Helpers pour logging structuré

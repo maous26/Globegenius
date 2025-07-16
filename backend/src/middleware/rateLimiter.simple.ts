@@ -11,8 +11,8 @@ export const rateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req: Request) => {
-    return req.ip;
+  keyGenerator: (req: Request): string => {
+    return req.ip || 'unknown';
   },
   handler: (req: Request, res: Response) => {
     res.status(429).json({
