@@ -1,0 +1,302 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Linting et vérification du code
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          npm ci --prefix backend
+          npm ci --prefix frontend
+      
+      - name: Lint backend
+        run: npm run lint --prefix backend
+      
+      - name: Lint frontend
+        run: npm run lint --prefix frontend
+      
+      - name: Type check
+        run: |
+          npm run type-check --prefix backend
+          npm run type-check --prefix frontend
+
+  # Tests unitaires backend
+  test-backend:
+    name: Test Backend
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: globegenius_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci --prefix backend
+      
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/globegenius_test
+        run: npm run db:migrate --prefix backend
+      
+      - name: Run tests
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test:test@localhost:5432/globegenius_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-secret-min-32-characters-long
+          JWT_REFRESH_SECRET: test-refresh-secret-32-chars
+          ENCRYPTION_KEY: test-encryption-key-32-chars-ok
+        run: npm test --prefix backend -- --coverage
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./backend/coverage/coverage-final.json
+          flags: backend
+
+  # Tests unitaires frontend
+  test-frontend:
+    name: Test Frontend
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci --prefix frontend
+      
+      - name: Run tests
+        run: npm test --prefix frontend -- --coverage
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./frontend/coverage/coverage-final.json
+          flags: frontend
+
+  # Tests ML Service
+  test-ml:
+    name: Test ML Service
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          cd ml
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+      
+      - name: Run tests
+        run: |
+          cd ml
+          pytest --cov=. --cov-report=xml
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./ml/coverage.xml
+          flags: ml
+
+  # Build des images Docker
+  build:
+    name: Build Docker Images
+    needs: [lint, test-backend, test-frontend, test-ml]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ secrets.DOCKER_USERNAME }}/globegenius-backend
+            ${{ secrets.DOCKER_USERNAME }}/globegenius-frontend
+            ${{ secrets.DOCKER_USERNAME }}/globegenius-ml
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+      
+      - name: Build and push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/globegenius-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/globegenius-frontend:latest
+          build-args: |
+            VITE_API_URL=${{ secrets.PROD_API_URL }}
+            VITE_APP_URL=${{ secrets.PROD_APP_URL }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Build and push ML Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ml
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/globegenius-ml:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Déploiement en production
+  deploy:
+    name: Deploy to Production
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd ~/globegenius
+            git pull origin main
+            
+            # Backup database
+            docker-compose -f docker-compose.prod.yml exec -T postgres pg_dump -U $DB_USER $DB_NAME | gzip > backups/pre-deploy-$(date +%Y%m%d_%H%M%S).sql.gz
+            
+            # Pull new images
+            docker-compose -f docker-compose.prod.yml pull
+            
+            # Update services with zero downtime
+            docker-compose -f docker-compose.prod.yml up -d --no-deps --scale backend=2 backend
+            sleep 30
+            docker-compose -f docker-compose.prod.yml up -d --no-deps backend
+            
+            docker-compose -f docker-compose.prod.yml up -d --no-deps ml-service
+            docker-compose -f docker-compose.prod.yml up -d --no-deps frontend
+            docker-compose -f docker-compose.prod.yml up -d --no-deps nginx
+            
+            # Run migrations
+            docker-compose -f docker-compose.prod.yml exec -T backend npm run db:migrate
+            
+            # Health check
+            sleep 10
+            curl -f https://${{ secrets.PROD_APP_URL }}/health || exit 1
+      
+      - name: Notify Slack
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'Deployment to production ${{ job.status }}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Analyse de sécurité
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+      
+      - name: Run npm audit
+        run: |
+          npm audit --prefix backend --audit-level=moderate
+          npm audit --prefix frontend --audit-level=moderate
