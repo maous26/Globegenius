@@ -8,7 +8,8 @@ import {
   User,
   Bell,
   Menu,
-  X
+  X,
+  Shield
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
@@ -17,9 +18,15 @@ const Layout: React.FC = () => {
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
+  // Vérifier si l'utilisateur est admin
+  const isAdmin = user?.email === 'admin@globegenius.com' || 
+                  user?.role === 'admin' ||
+                  user?.permissions?.includes('admin');
+
   const navigation = [
     { name: 'Tableau de bord', href: '/dashboard', icon: Globe },
     { name: 'Préférences', href: '/preferences', icon: Settings },
+    ...(isAdmin ? [{ name: 'Administration', href: '/admin', icon: Shield }] : []),
   ];
 
   const handleLogout = async () => {
@@ -106,7 +113,7 @@ const Layout: React.FC = () => {
                   <Link
                     key={item.name}
                     to={item.href}
-                    className="flex items-center space-x-2 text-slate-300 hover:text-white hover:bg-slate-700 block px-3 py-2 rounded-md text-base font-medium"
+                    className="flex items-center space-x-2 text-slate-300 hover:text-white hover:bg-slate-700 px-3 py-2 rounded-md text-base font-medium"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     <item.icon className="w-4 h-4" />

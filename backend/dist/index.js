@@ -45,19 +45,15 @@ const dotenv = __importStar(require("dotenv"));
 const http_1 = require("http");
 // Load environment variables
 dotenv.config();
-const logger_1 = require("./utils/logger");
-// TODO: Re-enable these imports once module resolution is fixed
-// import { errorHandler } from './middleware/errorHandler';
-// import { rateLimiter } from './middleware/rateLimiter.simple';
-// import { connectDatabase } from './database/connection';
-// import { connectRedis, cleanupRedis } from './services/redis';
+const utils_1 = require("./utils");
+// Import middleware and services
+const middleware_1 = require("./middleware");
+const middleware_2 = require("./middleware");
+// import { connectDatabase } from './database';
+// import { connectRedis, cleanupRedis } from './services';
 // import { initializeJobs } from './jobs';
-// Import routes (commented out until module resolution is fixed)
-// import authRoutes from './routes/auth';
-// import userRoutes from './routes/users';
-// import alertRoutes from './routes/alerts';
-// import metricsRoutes from './routes/metrics';
-// import adminRoutes from './routes/admin';
+// Import routes
+const routes_1 = require("./routes");
 // Create Express app
 const app = (0, express_1.default)();
 const server = (0, http_1.createServer)(app);
@@ -79,9 +75,9 @@ app.use((0, cors_1.default)({
 app.use((0, compression_1.default)());
 app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
-app.use((0, morgan_1.default)('combined', { stream: { write: message => logger_1.logger.info(message.trim()) } }));
-// Rate limiting (commented out until module resolution is fixed)
-// app.use('/api/', rateLimiter);
+app.use((0, morgan_1.default)('combined', { stream: { write: message => utils_1.logger.info(message.trim()) } }));
+// Rate limiting
+app.use('/api/', middleware_2.rateLimiter);
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.json({
@@ -91,12 +87,29 @@ app.get('/health', (req, res) => {
         version: process.env.npm_package_version,
     });
 });
-// API Routes (commented out until module resolution is fixed)
-// app.use('/api/auth', authRoutes);
-// app.use('/api/users', userRoutes);
-// app.use('/api/alerts', alertRoutes);
-// app.use('/api/metrics', metricsRoutes);
-// app.use('/api/admin', adminRoutes);
+// API Routes
+app.use('/api/auth', routes_1.authRoutes);
+app.use('/api/users', routes_1.userRoutes);
+app.use('/api/alerts', routes_1.alertRoutes);
+app.use('/api/metrics', routes_1.metricsRoutes);
+app.use('/api/admin', routes_1.adminRoutes);
+// Root route
+app.get('/', (req, res) => {
+    res.json({
+        name: 'GlobeGenius API',
+        version: '1.0.0',
+        description: 'Service d\'alertes voyage intelligent avec IA',
+        endpoints: {
+            health: '/health',
+            auth: '/api/auth/*',
+            users: '/api/users/*',
+            alerts: '/api/alerts/*',
+            metrics: '/api/metrics/*',
+            admin: '/api/admin/*'
+        },
+        documentation: '/api-docs'
+    });
+});
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({
@@ -104,14 +117,14 @@ app.use((req, res) => {
         message: 'The requested resource does not exist',
     });
 });
-// Error handling middleware (commented out until module resolution is fixed)
-// app.use(errorHandler);
+// Error handling middleware
+app.use(middleware_1.errorHandler);
 // Graceful shutdown handler
 const gracefulShutdown = async (signal) => {
-    logger_1.logger.info(`${signal} received. Starting graceful shutdown...`);
+    utils_1.logger.info(`${signal} received. Starting graceful shutdown...`);
     // Stop accepting new connections
     server.close(() => {
-        logger_1.logger.info('HTTP server closed');
+        utils_1.logger.info('HTTP server closed');
     });
     // TODO: Re-enable when modules are fixed
     // Close database connections
@@ -128,11 +141,11 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 // Handle uncaught errors
 process.on('uncaughtException', (error) => {
-    logger_1.logger.error('Uncaught Exception:', error);
+    utils_1.logger.error('Uncaught Exception:', error);
     gracefulShutdown('uncaughtException');
 });
 process.on('unhandledRejection', (reason, promise) => {
-    logger_1.logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    utils_1.logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
     gracefulShutdown('unhandledRejection');
 });
 // Start server
@@ -153,7 +166,7 @@ const startServer = async () => {
         // Start listening
         const PORT = process.env.PORT || 3000;
         server.listen(PORT, () => {
-            logger_1.logger.info(`
+            utils_1.logger.info(`
         🚀 GlobeGenius Backend Server Started
         📍 Environment: ${process.env.NODE_ENV}
         🔗 URL: http://localhost:${PORT}
@@ -163,7 +176,7 @@ const startServer = async () => {
         });
     }
     catch (error) {
-        logger_1.logger.error('Failed to start server:', error);
+        utils_1.logger.error('Failed to start server:', error);
         process.exit(1);
     }
 };

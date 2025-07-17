@@ -1,0 +1,275 @@
+import { Request, Response, NextFunction } from 'express';
+import Joi from 'joi';
+import { logger } from '../utils/logger';
+import { Multer } from 'multer';
+
+// Extend Express Request type to include multer's file property
+declare global {
+  namespace Express {
+    interface Request {
+      file?: Multer.File;
+      files?: Multer.File[] | { [fieldname: string]: Multer.File[] };
+    }
+  }
+}
+
+type ValidationTarget = 'body' | 'query' | 'params';
+
+interface ValidationError {
+  field: string;
+  message: string;
+  type: string;
+}
+
+/**
+ * Middleware de validation générique utilisant Joi
+ */
+export const validateRequest = (
+  schema: Joi.Schema,
+  target: ValidationTarget = 'body'
+) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const dataToValidate = req[target];
+    
+    const { error, value } = schema.validate(dataToValidate, {
+      abortEarly: false, // Récupérer toutes les erreurs
+      stripUnknown: true, // Supprimer les champs non définis
+      convert: true, // Convertir les types automatiquement
+    });
+
+    if (error) {
+      const errors: ValidationError[] = error.details.map(detail => ({
+        field: detail.path.join('.'),
+        message: detail.message,
+        type: detail.type,
+      }));
+
+      logger.warn('Validation error:', {
+        target,
+        errors,
+        data: dataToValidate,
+      });
+
+      res.status(400).json({
+        error: 'ValidationError',
+        message: 'Les données fournies sont invalides',
+        errors,
+      });
+      return;
+    }
+
+    // Remplacer les données par les données validées et nettoyées
+    req[target] = value;
+    next();
+  };
+};
+
+/**
+ * Schémas de validation réutilisables
+ */
+export const commonSchemas = {
+  // Email valide
+  email: Joi.string()
+    .email({ minDomainSegments: 2 })
+    .lowercase()
+    .trim()
+    .messages({
+      'string.email': 'Email invalide',
+      'string.empty': 'L\'email est requis',
+    }),
+
+  // Mot de passe sécurisé
+  password: Joi.string()
+    .min(8)
+    .max(128)
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .messages({
+      'string.min': 'Le mot de passe doit contenir au moins 8 caractères',
+      'string.pattern.base': 'Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre',
+    }),
+
+  // Code IATA d'aéroport
+  airportCode: Joi.string()
+    .length(3)
+    .uppercase()
+    .pattern(/^[A-Z]{3}$/)
+    .messages({
+      'string.length': 'Le code aéroport doit contenir 3 lettres',
+      'string.pattern.base': 'Code aéroport invalide',
+    }),
+
+  // UUID v4
+  uuid: Joi.string()
+    .guid({ version: 'uuidv4' })
+    .messages({
+      'string.guid': 'Identifiant invalide',
+    }),
+
+  // Pagination
+  pagination: Joi.object({
+    limit: Joi.number().integer().min(1).max(100).default(20),
+    offset: Joi.number().integer().min(0).default(0),
+    sort: Joi.string().valid('asc', 'desc').default('desc'),
+    sortBy: Joi.string().default('created_at'),
+  }),
+
+  // Période de dates
+  dateRange: Joi.object({
+    from: Joi.date().iso().required(),
+    to: Joi.date().iso().min(Joi.ref('from')).required(),
+  }).messages({
+    'date.min': 'La date de fin doit être après la date de début',
+  }),
+
+  // Préférences utilisateur
+  userPreferences: Joi.object({
+    destinations: Joi.array()
+      .items(Joi.string().length(3).uppercase())
+      .max(10)
+      .optional(),
+    maxPrice: Joi.number()
+      .min(0)
+      .max(10000)
+      .optional(),
+    travelTypes: Joi.array()
+      .items(Joi.string().valid('leisure', 'business', 'family'))
+      .optional(),
+    advanceDays: Joi.number()
+      .integer()
+      .min(7)
+      .max(365)
+      .optional(),
+    flexibleDates: Joi.boolean()
+      .optional(),
+    errorDetectionEnabled: Joi.boolean()
+      .optional(),
+    alertFrequency: Joi.string()
+      .valid('immediate', 'daily', 'weekly')
+      .optional(),
+    language: Joi.string()
+      .valid('fr', 'en')
+      .optional(),
+  }),
+};
+
+/**
+ * Middleware de validation pour les requêtes avec fichiers
+ */
+export const validateMultipart = (
+  schema: Joi.Schema,
+  fileField?: string,
+  fileRequired: boolean = false
+) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    // Valider les champs texte
+    const { error, value } = schema.validate(req.body, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
+
+    if (error) {
+      const errors: ValidationError[] = error.details.map(detail => ({
+        field: detail.path.join('.'),
+        message: detail.message,
+        type: detail.type,
+      }));
+
+      res.status(400).json({
+        error: 'ValidationError',
+        message: 'Les données fournies sont invalides',
+        errors,
+      });
+      return;
+    }
+
+    // Valider le fichier si nécessaire
+    if (fileField && fileRequired && !req.file) {
+      res.status(400).json({
+        error: 'ValidationError',
+        message: 'Fichier requis',
+        errors: [{
+          field: fileField,
+          message: 'Le fichier est requis',
+          type: 'required',
+        }],
+      });
+      return;
+    }
+
+    req.body = value;
+    next();
+  };
+};
+
+/**
+ * Middleware pour valider les paramètres de requête
+ */
+export const validateQuery = (schema: Joi.Schema) => 
+  validateRequest(schema, 'query');
+
+/**
+ * Middleware pour valider les paramètres d'URL
+ */
+export const validateParams = (schema: Joi.Schema) => 
+  validateRequest(schema, 'params');
+
+/**
+ * Sanitizer pour nettoyer les entrées utilisateur
+ */
+export const sanitize = {
+  // Nettoyer une chaîne de caractères
+  string: (value: string): string => {
+    return value
+      .trim()
+      .replace(/<[^>]*>?/gm, '') // Supprimer les balises HTML
+      .replace(/[^\w\s\-\.@]/gi, ''); // Garder seulement les caractères alphanumériques et certains symboles
+  },
+
+  // Nettoyer un email
+  email: (value: string): string => {
+    return value.toLowerCase().trim();
+  },
+
+  // Nettoyer un numéro de téléphone
+  phone: (value: string): string => {
+    return value.replace(/[^\d+]/g, '');
+  },
+};
+
+/**
+ * Validateur personnalisé pour les codes IATA
+ */
+export const validateIATACode = (value: string, helpers: Joi.CustomHelpers) => {
+  const validCodes = [
+    // Aéroports français principaux
+    'CDG', 'ORY', 'NCE', 'LYS', 'MRS', 'TLS', 'BOD', 'NTE', 'LIL', 'SXB',
+    'MPL', 'BIQ', 'RNS', 'BES', 'CFE', 'FSC', 'EGC', 'AJA', 'BIA', 'CLY',
+    
+    // Capitales européennes
+    'LHR', 'LGW', 'MAD', 'BCN', 'FCO', 'CIA', 'AMS', 'BRU', 'FRA', 'MUC',
+    'BER', 'VIE', 'ZRH', 'GVA', 'LIS', 'OPO', 'ATH', 'DUB', 'CPH', 'ARN',
+    'OSL', 'HEL', 'WAW', 'PRG', 'BUD', 'OTP', 'SOF',
+    
+    // Autres destinations populaires
+    'JFK', 'LAX', 'MIA', 'DXB', 'BKK', 'SIN', 'HKG', 'NRT', 'ICN', 'PEK',
+    'SYD', 'MEL', 'AKL', 'CMN', 'TUN', 'CAI', 'JNB', 'DKR', 'MBA', 'MRU',
+  ];
+
+  if (!validCodes.includes(value.toUpperCase())) {
+    return helpers.error('any.invalid');
+  }
+
+  return value.toUpperCase();
+};
+
+// Ajouter le validateur personnalisé à Joi
+Joi.extend({
+  type: 'airport',
+  base: Joi.string(),
+  messages: {
+    'airport.invalid': 'Code aéroport non reconnu',
+  },
+  validate(value, helpers) {
+    return validateIATACode(value, helpers);
+  },
+});

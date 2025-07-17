@@ -1,0 +1,282 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+@layer base {
+  :root {
+    --primary: 168 85 247;
+    --primary-foreground: 250 250 250;
+    --secondary: 236 72 153;
+    --secondary-foreground: 250 250 250;
+    --background: 15 23 42;
+    --foreground: 241 245 249;
+    --muted: 51 65 85;
+    --muted-foreground: 148 163 184;
+    --accent: 147 51 234;
+    --accent-foreground: 250 250 250;
+    --destructive: 239 68 68;
+    --destructive-foreground: 250 250 250;
+    --border: 51 65 85;
+    --input: 30 41 59;
+    --ring: 168 85 247;
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-slate-700;
+  }
+
+  body {
+    @apply bg-slate-900 text-slate-100 antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Selection colors */
+  ::selection {
+    @apply bg-primary-600/30 text-white;
+  }
+
+  /* Focus styles */
+  :focus {
+    @apply outline-none;
+  }
+
+  :focus-visible {
+    @apply ring-2 ring-purple-500 ring-offset-2 ring-offset-slate-900;
+  }
+}
+
+/* Component styles */
+@layer components {
+  /* Glassmorphism card */
+  .glass-card {
+    @apply bg-slate-800/30 backdrop-blur-xl border border-slate-700/50 rounded-xl;
+    background: linear-gradient(
+      135deg,
+      rgba(51, 65, 85, 0.1) 0%,
+      rgba(100, 116, 139, 0.1) 100%
+    );
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent;
+  }
+
+  /* Glow button */
+  .btn-glow {
+    @apply relative overflow-hidden transition-all duration-300;
+    background: linear-gradient(135deg, rgb(168 85 247) 0%, rgb(236 72 153) 100%);
+  }
+
+  .btn-glow::before {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: linear-gradient(135deg, rgb(168 85 247 / 0.8) 0%, rgb(236 72 153 / 0.8) 100%);
+    filter: blur(20px);
+  }
+
+  .btn-glow:hover::before {
+    @apply opacity-100;
+  }
+
+  .btn-glow:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 40px rgba(168, 85, 247, 0.3);
+  }
+
+  /* Input styles */
+  .input-primary {
+    @apply bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 
+           focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 
+           transition-all duration-200 placeholder-slate-500;
+  }
+
+  /* Card hover effect */
+  .card-hover {
+    @apply transition-all duration-300 hover:translate-y-[-4px] hover:shadow-xl;
+  }
+
+  /* Pulse animation for notifications */
+  .pulse-dot {
+    @apply relative inline-flex h-3 w-3;
+  }
+
+  .pulse-dot::before {
+    content: '';
+    @apply absolute inset-0 rounded-full bg-current opacity-75 animate-ping;
+  }
+
+  .pulse-dot::after {
+    content: '';
+    @apply absolute inset-0 rounded-full bg-current;
+  }
+
+  /* Skeleton loader */
+  .skeleton {
+    @apply relative overflow-hidden bg-slate-800/50 rounded;
+  }
+
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-slate-700/50 to-transparent animate-[shimmer_2s_infinite];
+  }
+
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  /* Deal card */
+  .deal-card {
+    @apply glass-card p-6 card-hover relative overflow-hidden;
+  }
+
+  .deal-card::before {
+    content: '';
+    @apply absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500/20 to-transparent rounded-full -translate-y-16 translate-x-16;
+  }
+
+  /* Badge styles */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply bg-green-500/20 text-green-400 border border-green-500/30;
+  }
+
+  .badge-warning {
+    @apply bg-yellow-500/20 text-yellow-400 border border-yellow-500/30;
+  }
+
+  .badge-error {
+    @apply bg-red-500/20 text-red-400 border border-red-500/30;
+  }
+
+  .badge-primary {
+    @apply bg-primary-500/20 text-primary-400 border border-primary-500/30;
+  }
+}
+
+/* Utility styles */
+@layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-slate-800/50 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-slate-600/50 rounded-full hover:bg-slate-600;
+  }
+
+  /* Text gradient animation */
+  .animate-text-gradient {
+    background-size: 200% 200%;
+    animation: gradient 8s ease infinite;
+  }
+
+  /* Mesh gradient background */
+  .mesh-gradient {
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%),
+      radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+  }
+
+  /* Neon glow effect */
+  .neon-glow {
+    text-shadow: 
+      0 0 7px rgba(168, 85, 247, 0.8),
+      0 0 10px rgba(168, 85, 247, 0.8),
+      0 0 21px rgba(168, 85, 247, 0.8),
+      0 0 42px rgba(168, 85, 247, 0.5),
+      0 0 82px rgba(168, 85, 247, 0.5),
+      0 0 92px rgba(168, 85, 247, 0.5);
+  }
+
+  /* Backdrop filters */
+  .backdrop-blur-xl {
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  .backdrop-blur-2xl {
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+  }
+}
+
+/* Animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 40px rgba(168, 85, 247, 0.8);
+  }
+}
+
+/* Custom animations for deals */
+.deal-alert {
+  animation: slideInRight 0.5s ease-out, pulse-glow 2s ease-in-out infinite;
+}
+
+/* Loading spinner */
+.loading-spinner {
+  @apply inline-block w-8 h-8 border-4 border-slate-600 border-t-primary-500 rounded-full animate-spin;
+}
+
+/* Responsive typography */
+@media (max-width: 640px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    background-color: white;
+    color: black;
+  }
+}

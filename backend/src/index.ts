@@ -13,19 +13,15 @@ dotenv.config();
 import { config } from './config';
 import { logger } from './utils';
 
-// TODO: Re-enable these imports once module resolution is fixed
-// import { errorHandler } from './middleware';
-// import { rateLimiter } from './middleware';
-// import { connectDatabase } from './database';
+// Import middleware and services
+import { errorHandler } from './middleware';
+import { rateLimiter } from './middleware';
+import { connectDatabase } from './database/connection';
 // import { connectRedis, cleanupRedis } from './services';
 // import { initializeJobs } from './jobs';
 
-// Import routes (commented out until module resolution is fixed)
-// import authRoutes from './routes';
-// import userRoutes from './routes';
-// import alertRoutes from './routes';
-// import metricsRoutes from './routes/metrics';
-// import adminRoutes from './routes/admin';
+// Import routes
+import { authRoutes, userRoutes, alertRoutes, metricsRoutes, adminRoutes } from './routes';
 
 // Create Express app
 const app = express();
@@ -43,7 +39,14 @@ app.use(helmet({
   },
 }));
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:3001',
+    'http://localhost:3006',
+    'http://localhost:3002',
+    'http://localhost:3003',
+    'http://localhost:3004',
+    'http://localhost:3005'
+  ],
   credentials: true,
 }));
 app.use(compression());
@@ -51,8 +54,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 
-// Rate limiting (commented out until module resolution is fixed)
-// app.use('/api/', rateLimiter);
+// Rate limiting
+app.use('/api/', rateLimiter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -64,12 +67,30 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes (commented out until module resolution is fixed)
-// app.use('/api/auth', authRoutes);
-// app.use('/api/users', userRoutes);
-// app.use('/api/alerts', alertRoutes);
-// app.use('/api/metrics', metricsRoutes);
-// app.use('/api/admin', adminRoutes);
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/alerts', alertRoutes);
+app.use('/api/metrics', metricsRoutes);
+app.use('/api/admin', adminRoutes);
+
+// Root route
+app.get('/', (req, res) => {
+  res.json({
+    name: 'GlobeGenius API',
+    version: '1.0.0',
+    description: 'Service d\'alertes voyage intelligent avec IA',
+    endpoints: {
+      health: '/health',
+      auth: '/api/auth/*',
+      users: '/api/users/*',
+      alerts: '/api/alerts/*',
+      metrics: '/api/metrics/*',
+      admin: '/api/admin/*'
+    },
+    documentation: '/api-docs'
+  });
+});
 
 // 404 handler
 app.use((req, res) => {
@@ -79,8 +100,8 @@ app.use((req, res) => {
   });
 });
 
-// Error handling middleware (commented out until module resolution is fixed)
-// app.use(errorHandler);
+// Error handling middleware
+app.use(errorHandler);
 
 // Graceful shutdown handler
 const gracefulShutdown = async (signal: string) => {
@@ -93,8 +114,8 @@ const gracefulShutdown = async (signal: string) => {
 
   // TODO: Re-enable when modules are fixed
   // Close database connections
-  // await connectDatabase.end();
-  // logger.info('Database connections closed');
+  await connectDatabase.end();
+  logger.info('Database connections closed');
 
   // Close Redis connections
   // await cleanupRedis();
@@ -122,10 +143,9 @@ process.on('unhandledRejection', (reason, promise) => {
 // Start server
 const startServer = async () => {
   try {
-    // TODO: Re-enable when modules are fixed
     // Connect to database
-    // await connectDatabase.connect();
-    // logger.info('✅ Database connected successfully');
+    await connectDatabase.connect();
+    logger.info('✅ Database connected successfully');
 
     // Connect to Redis
     // await connectRedis();

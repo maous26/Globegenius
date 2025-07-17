@@ -1,0 +1,1295 @@
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { 
+  BarChart3, 
+  Users, 
+  Settings, 
+  Route,
+  Activity,
+  Database
+} from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+
+// Import modular components
+import AdminDashboard from '../components/AdminDashboard';
+import AdminUsers from '../components/AdminUsers';
+import AdminRoutes from '../components/AdminRoutes';
+import AdminAnalytics from '../components/AdminAnalytics';
+import AdminSystem from '../components/AdminSystem';
+import AdminErrorBoundary from '../components/AdminErrorBoundary';
+
+interface AdminStats {
+  users: {
+    total: number;
+    active: number;
+    newThisMonth: number;
+    growth: number;
+    byPlan: {
+      free: number;
+      basic: number;
+      premium: number;
+      premium_plus: number;
+    };
+  };
+  alerts: {
+    total: number;
+    sent: number;
+    opened: number;
+    clicked: number;
+    openRate: number;
+    clickRate: number;
+    conversions: number;
+    conversionRate: number;
+  };
+  revenue: {
+    total: number;
+    thisMonth: number;
+    growth: number;
+    mrr: number;
+    arpu: number;
+  };
+  system: {
+    uptime: string;
+    cpu: number;
+    memory: number;
+    requests: number;
+    errors: number;
+    apiCalls: {
+      total: number;
+      thisMonth: number;
+      limit: number;
+      usage: number;
+    };
+  };
+  routes: {
+    total: number;
+    active: number;
+    tier1: number;
+    tier2: number;
+    tier3: number;
+    topPerforming: Array<{
+      origin: string;
+      destination: string;
+      volume: number;
+      alertCount: number;
+      successRate: number;
+    }>;
+  };
+}
+
+interface RouteConfig {
+  id: string;
+  origin: string;
+  destination: string;
+  tier: 'tier1' | 'tier2' | 'tier3';
+  avgVolume: number;
+  scanFrequency: number;
+  isActive: boolean;
+  lastScan: string;
+  alertCount: number;
+  successRate: number;
+  priority: 'high' | 'medium' | 'low';
+}
+
+interface ApiUsage {
+  date: string;
+  calls: number;
+  errors: number;
+  avgResponseTime: number;
+  topEndpoints: Array<{
+    endpoint: string;
+    calls: number;
+    errors: number;
+  }>;
+}
+
+interface User {
+  id: string;
+  email: string;
+  status: 'active' | 'inactive' | 'suspended';
+  plan: 'free' | 'basic' | 'premium' | 'premium_plus';
+  joinDate: string;
+  lastLogin: string;
+  alertsCount: number;
+  totalSpent: number;
+}
+
+const AdminPage: React.FC = () => {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'routes' | 'analytics' | 'system'>('dashboard');
+  const [userFilter, setUserFilter] = useState<'all' | 'active' | 'inactive' | 'suspended'>('all');
+  const [routeFilter, setRouteFilter] = useState<'all' | 'tier1' | 'tier2' | 'tier3'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRoute, setSelectedRoute] = useState<RouteConfig | null>(null);
+
+  // Simulation des données admin étendues
+  const mockAdminStats: AdminStats = {
+    users: {
+      total: 12547,
+      active: 8932,
+      newThisMonth: 1234,
+      growth: 15.2,
+      byPlan: {
+        free: 7234,
+        basic: 3456,
+        premium: 1567,
+        premium_plus: 290
+      }
+    },
+    alerts: {
+      total: 89543,
+      sent: 89543,
+      opened: 67234,
+      clicked: 23456,
+      openRate: 75.1,
+      clickRate: 26.2,
+      conversions: 5678,
+      conversionRate: 6.3
+    },
+    revenue: {
+      total: 145678,
+      thisMonth: 28934,
+      growth: 23.4,
+      mrr: 28934,
+      arpu: 23.45
+    },
+    system: {
+      uptime: '99.98%',
+      cpu: 45,
+      memory: 68,
+      requests: 1234567,
+      errors: 23,
+      apiCalls: {
+        total: 2450000,
+        thisMonth: 185000,
+        limit: 3000000,
+        usage: 81.7
+      }
+    },
+    routes: {
+      total: 145,
+      active: 132,
+      tier1: 25,
+      tier2: 65,
+      tier3: 55,
+      topPerforming: [
+        { origin: 'CDG', destination: 'JFK', volume: 2500000, alertCount: 1234, successRate: 94.5 },
+        { origin: 'CDG', destination: 'NRT', volume: 1800000, alertCount: 987, successRate: 91.2 },
+        { origin: 'LHR', destination: 'LAX', volume: 2200000, alertCount: 1456, successRate: 93.8 }
+      ]
+    }
+  };
+
+  const mockRoutes: RouteConfig[] = [
+    {
+      id: '1',
+      origin: 'CDG',
+      destination: 'JFK',
+      tier: 'tier1',
+      avgVolume: 2500000,
+      scanFrequency: 15,
+      isActive: true,
+      lastScan: '2024-01-20T14:22:00Z',
+      alertCount: 1234,
+      successRate: 94.5,
+      priority: 'high'
+    },
+    {
+      id: '2',
+      origin: 'CDG',
+      destination: 'BCN',
+      tier: 'tier2',
+      avgVolume: 1200000,
+      scanFrequency: 60,
+      isActive: true,
+      lastScan: '2024-01-20T13:15:00Z',
+      alertCount: 567,
+      successRate: 89.2,
+      priority: 'medium'
+    },
+    {
+      id: '3',
+      origin: 'LYS',
+      destination: 'ROM',
+      tier: 'tier3',
+      avgVolume: 450000,
+      scanFrequency: 360,
+      isActive: false,
+      lastScan: '2024-01-19T09:30:00Z',
+      alertCount: 123,
+      successRate: 76.8,
+      priority: 'low'
+    }
+  ];
+
+  const filteredRoutes = mockRoutes.filter(route => {
+    const matchesFilter = routeFilter === 'all' || route.tier === routeFilter;
+    const matchesSearch = route.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         route.destination.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
+
+  const tabs = [
+    { id: 'dashboard', label: 'Tableau de bord', icon: BarChart3 },
+    { id: 'users', label: 'Utilisateurs', icon: Users },
+    { id: 'routes', label: 'Routes', icon: Route },
+    { id: 'analytics', label: 'Analytiques', icon: TrendingUp },
+    { id: 'system', label: 'Système', icon: Server }
+  ];
+
+  // Vérifier si l'utilisateur est admin (version simplifiée)
+  const isAdmin = user?.email === 'admin@globegenius.com';
+
+  const mockUsers: User[] = [
+    {
+      id: '1',
+      email: 'user1@example.com',
+      status: 'active',
+      plan: 'premium',
+      joinDate: '2024-01-15T10:30:00Z',
+      lastLogin: '2024-01-20T14:22:00Z',
+      alertsCount: 45,
+      totalSpent: 29.99
+    },
+    {
+      id: '2',
+      email: 'user2@example.com',
+      status: 'active',
+      plan: 'free',
+      joinDate: '2024-01-10T09:15:00Z',
+      lastLogin: '2024-01-19T11:45:00Z',
+      alertsCount: 12,
+      totalSpent: 0
+    },
+    {
+      id: '3',
+      email: 'user3@example.com',
+      status: 'inactive',
+      plan: 'basic',
+      joinDate: '2023-12-20T16:20:00Z',
+      lastLogin: '2024-01-05T08:30:00Z',
+      alertsCount: 23,
+      totalSpent: 9.99
+    }
+  ];
+
+  const filteredUsers = mockUsers.filter(user => {
+    const matchesFilter = userFilter === 'all' || user.status === userFilter;
+    const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'text-green-400 bg-green-400/20';
+      case 'inactive': return 'text-yellow-400 bg-yellow-400/20';
+      case 'suspended': return 'text-red-400 bg-red-400/20';
+      default: return 'text-slate-400 bg-slate-400/20';
+    }
+  };
+
+  const getPlanColor = (plan: string) => {
+    switch (plan) {
+      case 'free': return 'text-slate-400 bg-slate-400/20';
+      case 'basic': return 'text-blue-400 bg-blue-400/20';
+      case 'premium': return 'text-purple-400 bg-purple-400/20';
+      case 'premium_plus': return 'text-pink-400 bg-pink-400/20';
+      default: return 'text-slate-400 bg-slate-400/20';
+    }
+  };
+
+  const getTierColor = (tier: string) => {
+    switch (tier) {
+      case 'tier1': return 'text-green-400 bg-green-400/20';
+      case 'tier2': return 'text-yellow-400 bg-yellow-400/20';
+      case 'tier3': return 'text-red-400 bg-red-400/20';
+      default: return 'text-slate-400 bg-slate-400/20';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'text-red-400 bg-red-400/20';
+      case 'medium': return 'text-yellow-400 bg-yellow-400/20';
+      case 'low': return 'text-green-400 bg-green-400/20';
+      default: return 'text-slate-400 bg-slate-400/20';
+    }
+  };
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-8 max-w-md w-full text-center"
+        >
+          <Shield className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-4">Accès non autorisé</h2>
+          <p className="text-slate-400">
+            Vous n'avez pas les permissions nécessaires pour accéder à cette page.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-bold flex items-center gap-3">
+                <Shield className="w-8 h-8 text-purple-400" />
+                Console d'administration
+              </h1>
+              <p className="text-slate-400">
+                Gestion et monitoring de GlobeGenius
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <button className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 hover:bg-slate-800 rounded-xl transition">
+                <Download className="w-4 h-4" />
+                Export
+              </button>
+              <button className="flex items-center gap-2 px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500 rounded-xl transition">
+                <RefreshCw className="w-4 h-4" />
+                Actualiser
+              </button>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex items-center gap-2 bg-slate-800/50 p-2 rounded-xl">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+                  activeTab === tab.id
+                    ? 'bg-purple-600 text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Dashboard Tab */}
+        {activeTab === 'dashboard' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="glass-card p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-blue-600/20 rounded-xl">
+                    <Users className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <span className="text-sm text-green-400 flex items-center">
+                    <ArrowUp className="w-3 h-3 mr-1" />
+                    +{mockAdminStats.users.growth}%
+                  </span>
+                </div>
+                <h3 className="text-2xl font-bold">{mockAdminStats.users.total.toLocaleString()}</h3>
+                <p className="text-slate-400">Utilisateurs totaux</p>
+                <div className="mt-2 text-sm text-slate-500">
+                  {mockAdminStats.users.active.toLocaleString()} actifs
+                </div>
+              </div>
+
+              <div className="glass-card p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-purple-600/20 rounded-xl">
+                    <Bell className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <span className="text-sm text-slate-400">{mockAdminStats.alerts.openRate}%</span>
+                </div>
+                <h3 className="text-2xl font-bold">{mockAdminStats.alerts.total.toLocaleString()}</h3>
+                <p className="text-slate-400">Alertes envoyées</p>
+                <div className="mt-2 text-sm text-slate-500">
+                  {mockAdminStats.alerts.clicked.toLocaleString()} clics
+                </div>
+              </div>
+
+              <div className="glass-card p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-green-600/20 rounded-xl">
+                    <DollarSign className="w-6 h-6 text-green-400" />
+                  </div>
+                  <span className="text-sm text-green-400 flex items-center">
+                    <ArrowUp className="w-3 h-3 mr-1" />
+                    +{mockAdminStats.revenue.growth}%
+                  </span>
+                </div>
+                <h3 className="text-2xl font-bold">{mockAdminStats.revenue.total.toLocaleString()}€</h3>
+                <p className="text-slate-400">Revenus totaux</p>
+                <div className="mt-2 text-sm text-slate-500">
+                  MRR: {mockAdminStats.revenue.mrr.toLocaleString()}€
+                </div>
+              </div>
+
+              <div className="glass-card p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-orange-600/20 rounded-xl">
+                    <Zap className="w-6 h-6 text-orange-400" />
+                  </div>
+                  <span className="text-sm text-orange-400">{mockAdminStats.system.apiCalls.usage}%</span>
+                </div>
+                <h3 className="text-2xl font-bold">{mockAdminStats.system.apiCalls.thisMonth.toLocaleString()}</h3>
+                <p className="text-slate-400">Appels API ce mois</p>
+                <div className="mt-2 text-sm text-slate-500">
+                  Limite: {mockAdminStats.system.apiCalls.limit.toLocaleString()}
+                </div>
+              </div>
+            </div>
+
+            {/* Utilisateurs par abonnement */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="glass-card p-6">
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-purple-400" />
+                  Répartition des abonnements
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-slate-400 rounded-full"></div>
+                      <span className="text-slate-400">Gratuit</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{mockAdminStats.users.byPlan.free.toLocaleString()}</span>
+                      <span className="text-xs text-slate-500">
+                        ({((mockAdminStats.users.byPlan.free / mockAdminStats.users.total) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
+                      <span className="text-slate-400">Basic</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{mockAdminStats.users.byPlan.basic.toLocaleString()}</span>
+                      <span className="text-xs text-slate-500">
+                        ({((mockAdminStats.users.byPlan.basic / mockAdminStats.users.total) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-purple-400 rounded-full"></div>
+                      <span className="text-slate-400">Premium</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{mockAdminStats.users.byPlan.premium.toLocaleString()}</span>
+                      <span className="text-xs text-slate-500">
+                        ({((mockAdminStats.users.byPlan.premium / mockAdminStats.users.total) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-pink-400 rounded-full"></div>
+                      <span className="text-slate-400">Premium+</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{mockAdminStats.users.byPlan.premium_plus.toLocaleString()}</span>
+                      <span className="text-xs text-slate-500">
+                        ({((mockAdminStats.users.byPlan.premium_plus / mockAdminStats.users.total) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="glass-card p-6">
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <Route className="w-5 h-5 text-purple-400" />
+                  Performance des routes
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Total routes</span>
+                    <span className="font-semibold">{mockAdminStats.routes.total}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Actives</span>
+                    <span className="text-green-400 font-semibold">{mockAdminStats.routes.active}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 pt-2">
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-green-400">{mockAdminStats.routes.tier1}</div>
+                      <div className="text-xs text-slate-500">Tier 1</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-yellow-400">{mockAdminStats.routes.tier2}</div>
+                      <div className="text-xs text-slate-500">Tier 2</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-red-400">{mockAdminStats.routes.tier3}</div>
+                      <div className="text-xs text-slate-500">Tier 3</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Top performing routes */}
+            <div className="glass-card p-6">
+              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Target className="w-5 h-5 text-purple-400" />
+                Top routes performantes
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left py-3 px-4 text-slate-400">Route</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Volume</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Alertes</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Taux succès</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mockAdminStats.routes.topPerforming.map((route, index) => (
+                      <tr key={index} className="border-b border-slate-800">
+                        <td className="py-3 px-4 flex items-center gap-2">
+                          <Plane className="w-4 h-4 text-purple-400" />
+                          <span className="font-medium">{route.origin} → {route.destination}</span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-400">
+                          {route.volume.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4">{route.alertCount.toLocaleString()}</td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            route.successRate > 90 ? 'text-green-400 bg-green-400/20' : 
+                            route.successRate > 80 ? 'text-yellow-400 bg-yellow-400/20' : 
+                            'text-red-400 bg-red-400/20'
+                          }`}>
+                            {route.successRate}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* System Health & API Usage */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="glass-card p-6">
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <Server className="w-5 h-5 text-purple-400" />
+                  État du système
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Uptime</span>
+                    <span className="text-green-400 font-semibold">{mockAdminStats.system.uptime}</span>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-slate-400">CPU</span>
+                      <span className="text-sm">{mockAdminStats.system.cpu}%</span>
+                    </div>
+                    <div className="w-full bg-slate-800 rounded-full h-2">
+                      <div 
+                        className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${mockAdminStats.system.cpu}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-slate-400">Mémoire</span>
+                      <span className="text-sm">{mockAdminStats.system.memory}%</span>
+                    </div>
+                    <div className="w-full bg-slate-800 rounded-full h-2">
+                      <div 
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${mockAdminStats.system.memory}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Erreurs</span>
+                    <span className="text-red-400 font-semibold">{mockAdminStats.system.errors}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="glass-card p-6">
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-purple-400" />
+                  Usage API
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-slate-400">Utilisation mensuelle</span>
+                      <span className="text-sm">{mockAdminStats.system.apiCalls.usage}%</span>
+                    </div>
+                    <div className="w-full bg-slate-800 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          mockAdminStats.system.apiCalls.usage > 90 ? 'bg-red-500' :
+                          mockAdminStats.system.apiCalls.usage > 75 ? 'bg-yellow-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${mockAdminStats.system.apiCalls.usage}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Appels ce mois</span>
+                    <span className="font-semibold">{mockAdminStats.system.apiCalls.thisMonth.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Limite mensuelle</span>
+                    <span className="font-semibold">{mockAdminStats.system.apiCalls.limit.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Appels totaux</span>
+                    <span className="font-semibold">{mockAdminStats.system.apiCalls.total.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Routes Tab */}
+        {activeTab === 'routes' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            {/* Route Management Header */}
+            <div className="glass-card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold">Gestion des routes</h3>
+                <div className="flex items-center gap-4">
+                  <button className="flex items-center gap-2 px-4 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-500 rounded-xl transition">
+                    <Plus className="w-4 h-4" />
+                    Ajouter route
+                  </button>
+                  <button className="flex items-center gap-2 px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500 rounded-xl transition">
+                    <RefreshCw className="w-4 h-4" />
+                    Mise à jour auto
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher par origine ou destination..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+                <select
+                  value={routeFilter}
+                  onChange={(e) => setRouteFilter(e.target.value as any)}
+                  className="px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="all">Tous les tiers</option>
+                  <option value="tier1">Tier 1 (15min)</option>
+                  <option value="tier2">Tier 2 (1h)</option>
+                  <option value="tier3">Tier 3 (6h)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Routes Statistics */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="glass-card p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-green-600/20 rounded-xl">
+                    <CheckCircle className="w-6 h-6 text-green-400" />
+                  </div>
+                  <span className="text-sm text-green-400">Tier 1</span>
+                </div>
+                <h3 className="text-2xl font-bold">{mockAdminStats.routes.tier1}</h3>
+                <p className="text-slate-400">Routes haute fréquence</p>
+                <div className="mt-2 text-sm text-slate-500">
+                  Scan: 15 minutes
+                </div>
+              </div>
+
+              <div className="glass-card p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-yellow-600/20 rounded-xl">
+                    <AlertCircle className="w-6 h-6 text-yellow-400" />
+                  </div>
+                  <span className="text-sm text-yellow-400">Tier 2</span>
+                </div>
+                <h3 className="text-2xl font-bold">{mockAdminStats.routes.tier2}</h3>
+                <p className="text-slate-400">Routes moyennes</p>
+                <div className="mt-2 text-sm text-slate-500">
+                  Scan: 1 heure
+                </div>
+              </div>
+
+              <div className="glass-card p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-red-600/20 rounded-xl">
+                    <XCircle className="w-6 h-6 text-red-400" />
+                  </div>
+                  <span className="text-sm text-red-400">Tier 3</span>
+                </div>
+                <h3 className="text-2xl font-bold">{mockAdminStats.routes.tier3}</h3>
+                <p className="text-slate-400">Routes basse fréquence</p>
+                <div className="mt-2 text-sm text-slate-500">
+                  Scan: 6 heures
+                </div>
+              </div>
+
+              <div className="glass-card p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-blue-600/20 rounded-xl">
+                    <Activity className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <span className="text-sm text-blue-400">
+                    {((mockAdminStats.routes.active / mockAdminStats.routes.total) * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <h3 className="text-2xl font-bold">{mockAdminStats.routes.active}</h3>
+                <p className="text-slate-400">Routes actives</p>
+                <div className="mt-2 text-sm text-slate-500">
+                  sur {mockAdminStats.routes.total} total
+                </div>
+              </div>
+            </div>
+
+            {/* Routes Table */}
+            <div className="glass-card p-6">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left py-3 px-4 text-slate-400">Route</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Tier</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Volume</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Fréquence</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Alertes</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Taux succès</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Statut</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Dernière scan</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRoutes.map((route) => (
+                      <tr key={route.id} className="border-b border-slate-800 hover:bg-slate-800/30">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <Plane className="w-4 h-4 text-purple-400" />
+                            <span className="font-medium">{route.origin} → {route.destination}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTierColor(route.tier)}`}>
+                            {route.tier}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-400">
+                          {route.avgVolume.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-slate-400">
+                          {route.scanFrequency}min
+                        </td>
+                        <td className="py-3 px-4">{route.alertCount}</td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            route.successRate > 90 ? 'text-green-400 bg-green-400/20' : 
+                            route.successRate > 80 ? 'text-yellow-400 bg-yellow-400/20' : 
+                            'text-red-400 bg-red-400/20'
+                          }`}>
+                            {route.successRate}%
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            route.isActive ? 'text-green-400 bg-green-400/20' : 'text-red-400 bg-red-400/20'
+                          }`}>
+                            {route.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-400">
+                          {format(new Date(route.lastScan), 'dd/MM HH:mm', { locale: fr })}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => setSelectedRoute(route)}
+                              className="p-2 hover:bg-slate-700 rounded-lg transition"
+                            >
+                              <Edit className="w-4 h-4 text-slate-400" />
+                            </button>
+                            <button className="p-2 hover:bg-slate-700 rounded-lg transition">
+                              <Trash2 className="w-4 h-4 text-red-400" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Route Configuration Panel */}
+            {selectedRoute && (
+              <div className="glass-card p-6">
+                <h3 className="text-xl font-semibold mb-4">Configuration de la route</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">
+                      Origine
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedRoute.origin}
+                      disabled
+                      className="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">
+                      Destination
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedRoute.destination}
+                      disabled
+                      className="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">
+                      Tier
+                    </label>
+                    <select
+                      value={selectedRoute.tier}
+                      className="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="tier1">Tier 1 (15 min)</option>
+                      <option value="tier2">Tier 2 (1 heure)</option>
+                      <option value="tier3">Tier 3 (6 heures)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">
+                      Volume mensuel estimé
+                    </label>
+                    <input
+                      type="number"
+                      value={selectedRoute.avgVolume}
+                      className="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">
+                      Fréquence de scan (minutes)
+                    </label>
+                    <input
+                      type="number"
+                      value={selectedRoute.scanFrequency}
+                      className="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">
+                      Priorité
+                    </label>
+                    <select
+                      value={selectedRoute.priority}
+                      className="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="high">Haute</option>
+                      <option value="medium">Moyenne</option>
+                      <option value="low">Basse</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 mt-6">
+                  <button className="px-6 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-500 rounded-xl transition">
+                    Sauvegarder
+                  </button>
+                  <button 
+                    onClick={() => setSelectedRoute(null)}
+                    className="px-6 py-2 bg-slate-800/50 hover:bg-slate-800 rounded-xl transition"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            {/* Filters */}
+            <div className="glass-card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold">Gestion des utilisateurs</h3>
+                <button className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500 rounded-xl transition">
+                  Ajouter utilisateur
+                </button>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher par email..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+                <select
+                  value={userFilter}
+                  onChange={(e) => setUserFilter(e.target.value as any)}
+                  className="px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="all">Tous les statuts</option>
+                  <option value="active">Actifs</option>
+                  <option value="inactive">Inactifs</option>
+                  <option value="suspended">Suspendus</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Users Table */}
+            <div className="glass-card p-6">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left py-3 px-4 text-slate-400">Utilisateur</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Statut</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Plan</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Inscription</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Dernière connexion</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Alertes</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Dépenses</th>
+                      <th className="text-left py-3 px-4 text-slate-400">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.map((user) => (
+                      <tr key={user.id} className="border-b border-slate-800 hover:bg-slate-800/30">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-purple-600/20 rounded-full flex items-center justify-center">
+                              <span className="text-purple-400 font-semibold text-sm">
+                                {user.email.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <span className="font-medium">{user.email}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
+                            {user.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPlanColor(user.plan)}`}>
+                            {user.plan}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-400">
+                          {format(new Date(user.joinDate), 'dd/MM/yyyy', { locale: fr })}
+                        </td>
+                        <td className="py-3 px-4 text-slate-400">
+                          {format(new Date(user.lastLogin), 'dd/MM/yyyy', { locale: fr })}
+                        </td>
+                        <td className="py-3 px-4">{user.alertsCount}</td>
+                        <td className="py-3 px-4">{user.totalSpent}€</td>
+                        <td className="py-3 px-4">
+                          <button className="p-2 hover:bg-slate-700 rounded-lg transition">
+                            <MoreHorizontal className="w-4 h-4 text-slate-400" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Analytics Tab */}
+        {activeTab === 'analytics' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            {/* Analytics Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="glass-card p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-green-400" />
+                  Croissance utilisateurs
+                </h3>
+                <div className="text-3xl font-bold text-green-400 mb-2">
+                  +{mockAdminStats.users.growth}%
+                </div>
+                <p className="text-slate-400">Ce mois vs mois précédent</p>
+                <div className="mt-4 text-sm text-slate-500">
+                  {mockAdminStats.users.newThisMonth} nouveaux utilisateurs
+                </div>
+              </div>
+
+              <div className="glass-card p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-purple-400" />
+                  Performance alertes
+                </h3>
+                <div className="text-3xl font-bold text-purple-400 mb-2">
+                  {mockAdminStats.alerts.conversionRate}%
+                </div>
+                <p className="text-slate-400">Taux de conversion</p>
+                <div className="mt-4 text-sm text-slate-500">
+                  {mockAdminStats.alerts.conversions} conversions
+                </div>
+              </div>
+
+              <div className="glass-card p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-green-400" />
+                  ARPU
+                </h3>
+                <div className="text-3xl font-bold text-green-400 mb-2">
+                  {mockAdminStats.revenue.arpu}€
+                </div>
+                <p className="text-slate-400">Revenu par utilisateur</p>
+                <div className="mt-4 text-sm text-slate-500">
+                  MRR: {mockAdminStats.revenue.mrr}€
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Analytics */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="glass-card p-6">
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <BarChart className="w-5 h-5 text-purple-400" />
+                  Répartition des abonnements
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 bg-slate-400 rounded"></div>
+                      <span>Gratuit</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-slate-400">
+                        {mockAdminStats.users.byPlan.free.toLocaleString()}
+                      </span>
+                      <span className="text-sm text-slate-500">
+                        {((mockAdminStats.users.byPlan.free / mockAdminStats.users.total) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 bg-blue-400 rounded"></div>
+                      <span>Basic (9,99€/mois)</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-blue-400">
+                        {mockAdminStats.users.byPlan.basic.toLocaleString()}
+                      </span>
+                      <span className="text-sm text-slate-500">
+                        {((mockAdminStats.users.byPlan.basic / mockAdminStats.users.total) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 bg-purple-400 rounded"></div>
+                      <span>Premium (19,99€/mois)</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-purple-400">
+                        {mockAdminStats.users.byPlan.premium.toLocaleString()}
+                      </span>
+                      <span className="text-sm text-slate-500">
+                        {((mockAdminStats.users.byPlan.premium / mockAdminStats.users.total) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 bg-pink-400 rounded"></div>
+                      <span>Premium+ (29,99€/mois)</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-pink-400">
+                        {mockAdminStats.users.byPlan.premium_plus.toLocaleString()}
+                      </span>
+                      <span className="text-sm text-slate-500">
+                        {((mockAdminStats.users.byPlan.premium_plus / mockAdminStats.users.total) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="glass-card p-6">
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <PieChart className="w-5 h-5 text-purple-400" />
+                  Métriques d'engagement
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Taux d'ouverture</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-20 bg-slate-800 rounded-full h-2">
+                        <div 
+                          className="bg-green-500 h-2 rounded-full"
+                          style={{ width: `${mockAdminStats.alerts.openRate}%` }}
+                        />
+                      </div>
+                      <span className="text-green-400 font-semibold">
+                        {mockAdminStats.alerts.openRate}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Taux de clic</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-20 bg-slate-800 rounded-full h-2">
+                        <div 
+                          className="bg-blue-500 h-2 rounded-full"
+                          style={{ width: `${mockAdminStats.alerts.clickRate}%` }}
+                        />
+                      </div>
+                      <span className="text-blue-400 font-semibold">
+                        {mockAdminStats.alerts.clickRate}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Taux de conversion</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-20 bg-slate-800 rounded-full h-2">
+                        <div 
+                          className="bg-purple-500 h-2 rounded-full"
+                          style={{ width: `${mockAdminStats.alerts.conversionRate * 10}%` }}
+                        />
+                      </div>
+                      <span className="text-purple-400 font-semibold">
+                        {mockAdminStats.alerts.conversionRate}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* API Usage Analytics */}
+            <div className="glass-card p-6">
+              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-purple-400" />
+                Utilisation API - Limite mensuelle
+              </h3>
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-slate-400">Consommation mensuelle</span>
+                  <span className="text-lg font-semibold">
+                    {mockAdminStats.system.apiCalls.thisMonth.toLocaleString()} / {mockAdminStats.system.apiCalls.limit.toLocaleString()}
+                  </span>
+                </div>
+                <div className="w-full bg-slate-800 rounded-full h-4">
+                  <div 
+                    className={`h-4 rounded-full transition-all duration-300 ${
+                      mockAdminStats.system.apiCalls.usage > 90 ? 'bg-red-500' :
+                      mockAdminStats.system.apiCalls.usage > 75 ? 'bg-yellow-500' :
+                      'bg-green-500'
+                    }`}
+                    style={{ width: `${mockAdminStats.system.apiCalls.usage}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-sm text-slate-500">0</span>
+                  <span className="text-sm text-slate-500">
+                    {mockAdminStats.system.apiCalls.limit.toLocaleString()} calls
+                  </span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-slate-800/50 p-4 rounded-lg">
+                  <div className="text-sm text-slate-400">Appels restants</div>
+                  <div className="text-xl font-bold text-green-400">
+                    {(mockAdminStats.system.apiCalls.limit - mockAdminStats.system.apiCalls.thisMonth).toLocaleString()}
+                  </div>
+                </div>
+                <div className="bg-slate-800/50 p-4 rounded-lg">
+                  <div className="text-sm text-slate-400">Moyenne journalière</div>
+                  <div className="text-xl font-bold text-blue-400">
+                    {Math.round(mockAdminStats.system.apiCalls.thisMonth / 30).toLocaleString()}
+                  </div>
+                </div>
+                <div className="bg-slate-800/50 p-4 rounded-lg">
+                  <div className="text-sm text-slate-400">Projection fin mois</div>
+                  <div className="text-xl font-bold text-purple-400">
+                    {Math.round(mockAdminStats.system.apiCalls.thisMonth * 1.2).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* System Tab */}
+        {activeTab === 'system' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            <div className="glass-card p-6">
+              <h3 className="text-xl font-semibold mb-4">Configuration système</h3>
+              <p className="text-slate-400">
+                Paramètres avancés et monitoring des services.
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default AdminPage;

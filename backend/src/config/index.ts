@@ -125,6 +125,21 @@ export const config = {
     },
   },
 
+  email: {
+    from: envVars.EMAIL_FROM,
+    fromName: envVars.EMAIL_FROM_NAME,
+    smtp: {
+      host: 'smtp.sendgrid.net',
+      port: 587,
+      user: 'apikey',
+      pass: envVars.SENDGRID_API_KEY,
+    },
+    dev: {
+      host: 'localhost',
+      port: 1025,
+    },
+  },
+
   security: {
     jwt: {
       secret: envVars.JWT_SECRET,

@@ -77,7 +77,19 @@ const prodTransport = {
 // Créer le logger
 exports.logger = isTest
     ? (0, pino_1.default)({ ...options, level: 'silent' }) // Silent en mode test
-    : (0, pino_1.default)(options, isDevelopment ? pino_1.default.transport(devTransport) : pino_1.default.transport(prodTransport));
+    : isDevelopment
+        ? (0, pino_1.default)({
+            ...options,
+            transport: {
+                target: 'pino-pretty',
+                options: {
+                    colorize: true,
+                    translateTime: 'HH:MM:ss Z',
+                    ignore: 'pid,hostname',
+                },
+            },
+        })
+        : (0, pino_1.default)(options);
 // Helpers pour logging structuré
 exports.loggers = {
     // Logger pour les requêtes HTTP

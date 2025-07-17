@@ -1,7 +1,15 @@
 import { Pool } from 'pg';
+import * as dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  host: 'localhost',
+  port: 5432,
+  database: 'globegenius_dev',
+  user: 'globegenius',
+  password: 'dev_password_change_in_prod',
 });
 
 async function runMigrations() {

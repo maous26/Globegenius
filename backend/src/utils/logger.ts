@@ -72,10 +72,19 @@ const prodTransport = {
 // Créer le logger
 export const logger = isTest
   ? pino({ ...options, level: 'silent' }) // Silent en mode test
-  : pino(
-      options,
-      isDevelopment ? pino.transport(devTransport) : pino.transport(prodTransport)
-    );
+  : isDevelopment
+    ? pino({
+        ...options,
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            translateTime: 'HH:MM:ss Z',
+            ignore: 'pid,hostname',
+          },
+        },
+      })
+    : pino(options);
 
 // Helpers pour logging structuré
 export const loggers = {

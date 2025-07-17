@@ -1,44 +1,35 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import './styles/globals.css';
-
-// Vérifier que l'élément root existe
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error('Failed to find the root element');
-}
-
-// Créer le root React
-const root = ReactDOM.createRoot(rootElement);
-
-// Mode strict en développement seulement
-const StrictModeWrapper = import.meta.env.DEV 
-  ? React.StrictMode 
-  : React.Fragment;
-
-// Render l'application
-root.render(
-  <StrictModeWrapper>
-    <App />
-  </StrictModeWrapper>
-);
-
-// Register service worker en production
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js')
-      .then((registration) => {
-        console.log('SW registered:', registration);
-      })
-      .catch((error) => {
-        console.log('SW registration failed:', error);
-      });
-  });
-}
-
-// Hot Module Replacement pour le développement
-if (import.meta.env.DEV && import.meta.hot) {
-  import.meta.hot.accept();
-}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="GlobeGenius - Service d'alertes voyage intelligent avec IA" />
+    <meta name="keywords" content="voyage, alertes, prix, vols, IA, machine learning" />
+    <meta name="author" content="GlobeGenius Team" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    
+    <!-- Theme color -->
+    <meta name="theme-color" content="#0f172a" />
+    
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="GlobeGenius - Alertes Voyage Intelligentes" />
+    <meta property="og:description" content="Découvrez les meilleures offres de voyage avec notre IA avancée" />
+    <meta property="og:url" content="https://globegenius.com" />
+    <meta property="og:image" content="/og-image.jpg" />
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="GlobeGenius - Alertes Voyage Intelligentes" />
+    <meta name="twitter:description" content="Découvrez les meilleures offres de voyage avec notre IA avancée" />
+    <meta name="twitter:image" content="/twitter-image.jpg" />
+    
+    <title>GlobeGenius - Alertes Voyage Intelligentes</title>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

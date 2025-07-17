@@ -12,9 +12,13 @@ import {
   PreferencesPage,
   PricingPage
 } from './pages';
+import AdminPage from './pages/AdminPage';
 
 // Components
-import { Layout, ProtectedRoute } from './components';
+import { Layout } from './components';
+import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
+import { NotificationProvider, NotificationContainer } from './components/NotificationSystem';
 
 // Context
 import { AuthProvider, ThemeProvider } from './contexts';
@@ -37,64 +41,79 @@ const queryClient = new QueryClient({
 function App() {
   useEffect(() => {
     // Initialiser les analytics (si configuré)
-    if (process.env.REACT_APP_GA_ID) {
+    if (import.meta.env.VITE_GA_ID) {
       // Google Analytics init
     }
   }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <Router>
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-              <Routes>
-                {/* Routes publiques */}
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/pricing" element={<PricingPage />} />
-                
-                {/* Routes protégées */}
-                <Route element={<ProtectedRoute />}>
-                  <Route element={<Layout />}>
-                    <Route path="/dashboard" element={<DashboardPage />} />
-                    <Route path="/preferences" element={<PreferencesPage />} />
+      <NotificationProvider>
+        <ThemeProvider>
+          <Router
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
+            <AuthProvider>
+              <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+                <Routes>
+                  {/* Routes publiques */}
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
+                  <Route path="/pricing" element={<PricingPage />} />
+                  
+                  {/* Routes protégées */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route element={<Layout />}>
+                      <Route path="/dashboard" element={<DashboardPage />} />
+                      <Route path="/preferences" element={<PreferencesPage />} />
+                    </Route>
                   </Route>
-                </Route>
+                  
+                  {/* Route admin protégée */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+                  </Route>
+                  
+                  {/* Redirection par défaut */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
                 
-                {/* Redirection par défaut */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-              
-              {/* Notifications toast */}
-              <Toaster
-                position="top-right"
-                toastOptions={{
-                  duration: 4000,
-                  style: {
-                    background: '#1e293b',
-                    color: '#f1f5f9',
-                    border: '1px solid #334155',
-                  },
-                  success: {
-                    iconTheme: {
-                      primary: '#10b981',
-                      secondary: '#f1f5f9',
+                {/* Notifications toast */}
+                <Toaster
+                  position="top-right"
+                  toastOptions={{
+                    duration: 4000,
+                    style: {
+                      background: '#1e293b',
+                      color: '#f1f5f9',
+                      border: '1px solid #334155',
                     },
-                  },
-                  error: {
-                    iconTheme: {
-                      primary: '#ef4444',
-                      secondary: '#f1f5f9',
+                    success: {
+                      iconTheme: {
+                        primary: '#10b981',
+                        secondary: '#f1f5f9',
+                      },
                     },
-                  },
-                }}
-              />
-            </div>
+                    error: {
+                      iconTheme: {
+                        primary: '#ef4444',
+                        secondary: '#f1f5f9',
+                      },
+                    },
+                  }}
+                />
+                
+                {/* Notification Container */}
+                <NotificationContainer />
+              </div>
+            </AuthProvider>
           </Router>
-        </AuthProvider>
-      </ThemeProvider>
+        </ThemeProvider>
+      </NotificationProvider>
     </QueryClientProvider>
   );
 }

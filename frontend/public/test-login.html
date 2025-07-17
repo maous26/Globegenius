@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GlobeGenius Login Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .form-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .logs {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2>GlobeGenius Login Test</h2>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" value="test@example.com" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" value="testpassword123" required>
+            </div>
+            <button type="submit">Test Login</button>
+        </form>
+        
+        <div id="result" class="result"></div>
+        <div id="logs" class="logs"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:3000/api';
+        const logs = document.getElementById('logs');
+        const result = document.getElementById('result');
+
+        function log(message) {
+            const timestamp = new Date().toISOString();
+            logs.textContent += `[${timestamp}] ${message}\n`;
+            logs.scrollTop = logs.scrollHeight;
+            console.log(message);
+        }
+
+        function showResult(message, isSuccess) {
+            result.textContent = message;
+            result.className = `result ${isSuccess ? 'success' : 'error'}`;
+            result.style.display = 'block';
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            log('🚀 Starting login test...');
+            log(`🔧 API Base URL: ${API_BASE_URL}`);
+            log(`📧 Email: ${email}`);
+            
+            try {
+                const loginUrl = `${API_BASE_URL}/auth/login`;
+                log(`🚀 Making POST request to: ${loginUrl}`);
+                
+                const response = await fetch(loginUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                log(`📋 Response status: ${response.status}`);
+                log(`📋 Response ok: ${response.ok}`);
+                
+                const data = await response.json();
+                log(`📋 Response data: ${JSON.stringify(data, null, 2)}`);
+                
+                if (response.ok && data.success) {
+                    showResult('✅ Login successful! The API endpoint is working correctly.', true);
+                    log('🎉 Login test passed!');
+                    
+                    // Test profile endpoint
+                    const token = data.data.accessToken;
+                    log('🚀 Testing profile endpoint...');
+                    
+                    const profileResponse = await fetch(`${API_BASE_URL}/auth/profile`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    
+                    if (profileResponse.ok) {
+                        const profileData = await profileResponse.json();
+                        log('✅ Profile fetch successful!');
+                        log(`📋 Profile data: ${JSON.stringify(profileData, null, 2)}`);
+                    } else {
+                        log('❌ Profile fetch failed');
+                    }
+                } else {
+                    showResult(`❌ Login failed: ${data.message || 'Unknown error'}`, false);
+                    log('❌ Login test failed');
+                }
+                
+            } catch (error) {
+                log(`❌ Network error: ${error.message}`);
+                showResult(`❌ Network error: ${error.message}`, false);
+            }
+        });
+
+        // Log initial configuration
+        log('🔧 Frontend API Test Page Loaded');
+        log(`🔧 API Base URL: ${API_BASE_URL}`);
+        log('📋 Ready to test login functionality');
+    </script>
+</body>
+</html>
